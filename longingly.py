@@ -3,7 +3,7 @@ from urlparse import urlparse
 import logging
 import copy
 import re
-import fetcher
+from fetcher import DefaultFetcher
 
 class Cache:
 	
@@ -160,10 +160,27 @@ class LongURL(Service):
 
 class Expander:
 	
-	def __init__(self, services = list(LongURL(), LongURLPlease()), cache = Cache()):
+	# Example construction:
+	"""
+	Expander( 
+		services = {
+			LongUrlPlease: { 
+				'priority': 0 
+			},
+			Bitly: { 
+				'priority': 1, 
+				'login': 'foo', 
+				'apikey': 'af745b9c91'
+			}
+		},
+		cache = Cache,
+		fetcher = DefaultFetcher
+	)
+	"""
+	def __init__(self, services = {}, cache = Cache, fetcher = DefaultFetcher):
 				
 		# cache for known expansions
-		self.cache = cache
+		self.cache = cache()
 		
 		# adjustments to make to service priorities when they succeed/fail
 		self.FAILURE_PENALTY = 5
@@ -172,8 +189,9 @@ class Expander:
 		# max number of failed expansions before giving up on a url
 		self.MAX_FAILURES = 3
 		
-		# service list
-		self.services = services
+		# instantiate configured service list
+		# [Class] -> [Service]
+		self.services = map(lambda s: s(fetcher = fetcher, **services[s]), services.keys())
 		
 	
 	# Url, Boolean -> Service
