@@ -1,10 +1,9 @@
-from google.appengine.api import urlfetch
-
 import json
 from urlparse import urlparse
 import logging
 import copy
 import re
+import fetcher
 
 class Cache:
 	
@@ -27,11 +26,12 @@ class Cache:
 	
 class Service:
 	
-	def __init__(self, priority = 0):
+	def __init__(self, fetcher, priority = 0):
 		
 		self.SUPPORTS_BATCH = False
 		self.MAX_BATCH_SIZE = 0
 		self.PRIORITY = priority
+		self.fetcher = fetcher()
 		
 		
 	def expand(self, url_string):
@@ -46,7 +46,7 @@ class Service:
 
 class Bitly(Service):
 	
-	def __init__(self, login, api_key, priority = 0):
+	def __init__(self, fetcher, login, api_key, priority = 0):
 		
 		super(Bitly, self).__init__(self, priority)
 		
@@ -66,9 +66,9 @@ class Bitly(Service):
 
 class LongURLPlease(Service):
 	
-	def __init__(self, priority = 0):
+	def __init__(self, fetcher, priority = 0):
 		
-		super(LongURLPlease, self).__init__(self, priority)
+		super(LongURLPlease, self).__init__(self, fetcher, priority)
 		
 		self.SUPPORTS_BATCH = True
 		self.BASE_URL = 'http://www.longurlplease.com/api/v1.1/'
@@ -79,33 +79,24 @@ class LongURLPlease(Service):
 	# load the regex for shortener support from the longurlplease api
 	def load_supported_regex(self):
 		
-		# TODO: handle errors here, both in request failure and in regex compilation
-		json_regex = urlfetch.fetch(self.BASE_URL + 'supported-services.json').content
-		return re.compile(json.loads(json_regex)['regex'])
+		return re.compile(self.fetcher.get(self.BASE_URL + 'supported-services.json')['regex'])
 	
 		
 	def supports_shortener(self, domain):
 		
-		if self.SUPPORTED_REGEX.match(domain):
-			return True
+		return self.SUPPORTED_REGEX.match(domain) != None
 			
-		return False
-	
+
 	def expand(self, url):
 		
 		urlstring = url.geturl()
 		
-		try:
-			json_result = urlfetch.fetch(self.BASE_URL + '?q=' + urlstring).content
-			
-		except urlfetch.DownloadError:
-			raise ResolutionException()
-			
-		else:
-			# TODO: handle exceptions stemming from json format issues or lack of results returned
-			result_dict = json.loads(json_result)
+		result_dict = self.fetcher.get(self.BASE_URL + '?q=' + urlstring)
+
+		if result_dict.has_key(urlstring):
 			return urlparse(result_dict[urlstring])
-	
+		else:
+			raise ResolutionException("Failed to resolve the given URL " + urlstring)
 	
 	
 	def batch_expand(self, url, batch):
@@ -121,30 +112,21 @@ class LongURLPlease(Service):
 			else:
 				request_string +=  '&q=' + batch_strings[i]
 		
-		try:
-			json_result = urlfetch.fetch(request_string).content
+		result_dict = self.fetcher.get(request_string)
+	
+		# parse all url strings into real url objects
+		# TODO: handle errors in url parsing
+		parsed_dict = dict()
+		for short_url_string in result_dict:
+			parsed_dict[urlparse(short_url_string)] = urlparse(result_dict[short_url_string])
 		
-		# handle communication errors	 
-		except urlfetch.DownloadError:
-			raise ResolutionException()
-		
-		else:
-			# TODO: handle errors stemming from json format or lack of results/errors returned
-			result_dict = json.loads(json_result)
-		
-			# parse all url strings into real url objects
-			# TODO: handle errors in url parsing
-			parsed_dict = dict()
-			for short_url_string in result_dict:
-				parsed_dict[urlparse(short_url_string)] = urlparse(result_dict[short_url_string])
-			
-			return parsed_dict
+		return parsed_dict
 
 	   
 	
 class LongURL(Service):
 	
-	def __init__(self, priority = 0):
+	def __init__(self, fetcher, priority = 0):
 		
 		super(LongURL, self).__init__(self, priority)
 		
@@ -159,8 +141,7 @@ class LongURL(Service):
 	# load the list of shorteners that longurl.org api supports expanding
 	def load_shortener_list(self):
 		
-		json_services = urlfetch.fetch(self.BASE_URL + 'services?format=json').content
-		service_dict = json.loads(json_services)
+		service_dict = self.fetcher.fetch(self.BASE_URL + 'services?format=json')
 		return service_dict.keys()
 	
 	
@@ -168,40 +149,13 @@ class LongURL(Service):
 		
 		url_string = url.geturl()
 		
-		try:
+		response_dict = self.fetcher.fetch(self.BASE_URL + 'expand?url=' + url_string + '&format=json&title=1')
 			
-			json_expansion = urlfetch.fetch(self.BASE_URL + 'expand?url=' + url_string + '&format=json&title=1').content
-			
-		except urlfetch.DownloadError:
-			
-			raise ResolutionException()
-			
+		if response_dict.has_key('long-url'):
+			return urlparse(response_dict['long-url'])
 		else:
+			raise ResolutionException("Could not resolve url: " + url_string)
 			
-			response_dict = json.loads(json_expansion)
-			
-			if isinstance(response_dict, dict):
-					
-				long_url = url_string
-				if response_dict.has_key('long-url'):
-					long_url = response_dict['long-url']
-				
-				title = long_url
-				if response_dict.has_key('title'):
-					title = response_dict['title']
-				
-					
-				result = (long_url, title)
-				self.cache[url_string.rstrip()] = result 
-				
-				return result
-			
-			else:
-				
-				raise ResolutionException()
-			
-		raise ResolutionException()
-
 
 
 class Expander:
