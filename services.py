@@ -8,7 +8,7 @@ class Service:
 		
 		self.SUPPORTS_BATCH = False
 		self.MAX_BATCH_SIZE = 0
-		self.PRIORITY = priority
+		self.priority = priority
 		self.fetcher = fetcher()
 		
 		
@@ -40,6 +40,11 @@ class Bitly(Service):
 	def expand(self, url):
 		
 		raise NotImplementedError()
+
+
+	def batch_expand(self, url):
+
+		raise NotImplementedError()
 		
 
 class LongURLPlease(Service):
@@ -49,27 +54,27 @@ class LongURLPlease(Service):
 		Service.__init__(self, fetcher, priority = priority)
 		
 		self.SUPPORTS_BATCH = True
-		self.BASE_URL = 'http://www.longurlplease.com/api/v1.1/'
+		self.BASE_URL = 'http://www.longurlplease.com/api/'
 		
-		self.SUPPORTED_REGEX = self.load_supported_regex()
+		self.SUPPORTED_SHORTENERS = self.load_supported_services()
 		
 	
 	# load the regex for shortener support from the longurlplease api
-	def load_supported_regex(self):
+	def load_supported_services(self):
 		
-		return re.compile(self.fetcher.get(self.BASE_URL + 'supported-services.json')['regex'])
+		return self.fetcher.get(self.BASE_URL + 'supported-services.json')['services']
 	
 		
 	def supports_shortener(self, domain):
 		
-		return self.SUPPORTED_REGEX.match(domain) != None
+		return domain in self.SUPPORTED_SHORTENERS
 			
 
 	def expand(self, url):
 		
 		urlstring = url.geturl()
 		
-		result_dict = self.fetcher.get(self.BASE_URL + '?q=' + urlstring)
+		result_dict = self.fetcher.get(self.BASE_URL + 'v1.1?q=' + urlstring)
 
 		if result_dict.has_key(urlstring):
 			return urlparse(result_dict[urlstring])
@@ -77,7 +82,7 @@ class LongURLPlease(Service):
 			raise ResolutionException("Failed to resolve the given URL " + urlstring)
 	
 	
-	def batch_expand(self, url, batch):
+	def batch_expand(self, batch):
 		
 		# [Url] -> [String]
 		batch_strings = map(lambda u: u.geturl(), batch)
@@ -86,7 +91,7 @@ class LongURLPlease(Service):
 		request_string = self.BASE_URL
 		for i in range(len(batch_strings)):
 			if i == 0:
-				request_string += '?q=' + batch_strings[i]
+				request_string += 'v1.1?q=' + batch_strings[i]
 			else:
 				request_string +=  '&q=' + batch_strings[i]
 		
