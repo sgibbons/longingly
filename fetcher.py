@@ -2,18 +2,13 @@ import json
 
 class Fetcher:
 
-	def __init__(self, async = False):
-		
-		self.ASYNC = async
-
-
-	def get(url, data):
+	def get(self, url, data):
 		
 		# Override in subclass
 		raise NotImplementedException()
 
 
-	def __get__(url, data, method, catch):
+	def __get__(self, url, data, method, catch):
 
 		try:
 			json_results = method(url)
@@ -32,30 +27,26 @@ class Fetcher:
 
 class GoogleAppEngineFetcher(Fetcher):
 
-	from google.appengine.api import urlfetch
+	try:
+		from google.appengine.api import urlfetch
+	except ImportError:
+		pass
 
+	def get(self, url, data):
 
-	def __init__(self, async = False):
-
-		super(GoogleAppEngineFetcher, self).__init__(async)
-
-
-	def get(url, data):
-
-		self.__get__(url, data, lambda u: urlfetch.fetch(url).contents, urlfetch.DownloadError)
+		return self.__get__(url, data, lambda u: urlfetch.fetch(url).contents, urlfetch.DownloadError)
 		
 
 class DefaultFetcher(Fetcher):
 
-	import urllib
+	try:
+		import urllib
+	except ImportError:
+		pass
 
-	def __init__(self, async = False):
-
-		super(DefaultFetcher, self).__init__(async)
-
-	def get(url, data):
+	def get(self, url, data):
 		
-		self.__get__(url, data, lambda u: urllib.urlopen(u).read(), IOError)
+		return self.__get__(url, data, lambda u: urllib.urlopen(u).read(), IOError)
 
 			
 
