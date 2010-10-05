@@ -1,4 +1,5 @@
 import json
+from error import ResolutionException
 
 class Fetcher:
 
@@ -8,7 +9,7 @@ class Fetcher:
 		raise NotImplementedException()
 
 
-	def __get__(self, url, data, method, catch):
+	def __get__(self, url, method, catch):
 
 		try:
 			json_results = method(url)
@@ -27,30 +28,26 @@ class Fetcher:
 
 class GoogleAppEngineFetcher(Fetcher):
 
-	try:
-		from google.appengine.api import urlfetch
-	except ImportError:
-		pass
 
-	def get(self, url, data):
+	def get(self, url):
 
-		return self.__get__(url, data, lambda u: urlfetch.fetch(url).contents, urlfetch.DownloadError)
+		try:
+			from google.appengine.api import urlfetch
+		except ImportError:
+			pass
+		else:
+			return self.__get__(url, lambda u: urlfetch.fetch(url).contents, urlfetch.DownloadError)
 		
 
 class DefaultFetcher(Fetcher):
 
-	try:
-		import urllib
-	except ImportError:
-		pass
 
-	def get(self, url, data):
+	def get(self, url):
 		
-		return self.__get__(url, data, lambda u: urllib.urlopen(u).read(), IOError)
+		try:
+			import urllib
+		except ImportError:
+			pass
+		else:
+			return self.__get__(url, lambda u: urllib.urlopen(u).read(), IOError)
 
-			
-
-
-
-
-		
