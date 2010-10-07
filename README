@@ -8,6 +8,9 @@ Longingly is a python library that allows high performance, high reliability URL
 	* Dynamically tracks and updates performance of services to select the best one
 	* Pluggable caching
 	* Easy to add more services
+	* Supports multiple environments
+		* Full python standard install
+		* Google app engine
 
 
 ## Basic usage
@@ -68,4 +71,13 @@ class CustomCache(Cache):
 
 exp = Expander(cache = CustomCache)
 exp.expand('http://bit.ly/cUpI7Q')
+# -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
+
+
+## App Engine Mode
+
+from longingly.expander import Expander
+from longingly.fetcher import GoogleAppEngineFetcher
+
+Expander(fetcher = GoogleAppEngineFetcher).expand('http://bit.ly/cUpI7Q')
 # -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
