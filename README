@@ -2,7 +2,7 @@
 
 Longingly is a python library that allows high performance, high reliability URL un-shortening by balancing requests across multiple services. It aims to be simple to use out of the box, but highly configurable to serve a variety uses.
 
-Longingly is currently in alpha and there is no stable release. Use at your own risk.
+Longingly is currently in alpha and there is no stable release. Use at your own risk. A "stable" release will be tagged upon the closing of all fatal issues in the issue tracker.
 
 ## Features
 	* Supports massive list of url shorteners
