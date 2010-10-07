@@ -14,7 +14,8 @@ Longingly is a python library that allows high performance, high reliability URL
 
 from longingly.expander import Expander
 
-Expander().expand('http://bit.ly/cUpI7Q) # -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
+Expander().expand('http://bit.ly/cUpI7Q') 
+# -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
 
 
 ## Configured usage
@@ -36,4 +37,35 @@ exp = Expander(
 	}
 )
 
+exp.expand('http://bit.ly/cUpI7Q')
+# -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
 
+
+## Custom Caching
+# By default, an in-memory per-expander cache is used. In order to create a custom cache:
+# subclass longingly.expander.cache, register class on expander construction
+
+from longingly.expander import Cache
+from longingly.expander import Expander
+
+class CustomCache(Cache):
+	
+	def __init__(self):
+		
+		# Initialize data store connection here
+
+	def has_key(self, key):
+		
+		# Query data store here
+	
+	def get(self, key):
+
+		# Query data store here
+	
+	def put(self, key, value):
+
+		# Insert into data store here
+
+exp = Expander(cache = CustomCache)
+exp.expand('http://bit.ly/cUpI7Q')
+# -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
