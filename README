@@ -1,0 +1,39 @@
+## Longingly ##
+
+Longingly is a python library that allows high performance, high reliability URL un-shortening by balancing requests across multiple services. It aims to be simple to use out of the box, but highly configurable to serve a variety uses.
+
+## Features
+	* Supports massive list of url shorteners
+	* Properly supports batch processing to minimize API calls
+	* Dynamically tracks and updates performance of services to select the best one
+	* Pluggable caching
+	* Easy to add more services
+
+
+## Basic usage
+
+from longingly.expander import Expander
+
+Expander().expand('http://bit.ly/cUpI7Q) # -> ParseResult(scheme=u'http', netloc=u'github.com', path=u'/', params='', query='', fragment='')
+
+
+## Configured usage
+
+from longingly.expander import Expander
+from longingly.services import Bitly
+from longingly.servuces import LongURL
+
+exp = Expander(
+	services = { 
+		Bitly: {
+			'priority': 1,
+			'login': 'your_bitly_login',
+			'apikey': 'af7b42cc031'
+		},
+		LongURL: {
+			'priority': 0
+		}
+	}
+)
+
+

@@ -2,6 +2,12 @@ from urlparse import urlparse
 from fetcher import DefaultFetcher
 from error import ResolutionException
 
+# default services
+from longingly.services import LongURLPlease
+from longingly.services import LongURL
+from longingly.services import Bitly
+
+
 class Cache:
 	
 	def __init__(self):
@@ -40,7 +46,7 @@ class Expander:
 		fetcher = DefaultFetcher
 	)
 	"""
-	def __init__(self, services = {}, cache = Cache, fetcher = DefaultFetcher):
+	def __init__(self, services = None, cache = Cache, fetcher = DefaultFetcher):
 				
 		# cache for known expansions
 		self.cache = cache()
@@ -52,6 +58,9 @@ class Expander:
 		# max number of failed expansions before giving up on a url
 		self.MAX_FAILURES = 3
 		
+		if not services:
+			services = { LongURLPlease: { 'priority': 0 }, LongURL: { 'priority': 0 } }
+
 		# instantiate configured service list
 		# [Class] -> [Service]
 		self.services = map(lambda s: s(fetcher = fetcher, **services[s]), services.keys())
