@@ -7,6 +7,9 @@ from longingly.services import LongURLPlease
 from longingly.services import LongURL
 from longingly.services import Bitly
 
+# default logger
+from longingly.logging import DefaultLogger
+
 
 class Cache:
 	
@@ -46,7 +49,7 @@ class Expander:
 		fetcher = DefaultFetcher
 	)
 	"""
-	def __init__(self, services = None, cache = Cache, fetcher = DefaultFetcher):
+	def __init__(self, services = None, cache = Cache, fetcher = DefaultFetcher, logger = DefaultLogger):
 				
 		# cache for known expansions
 		self.cache = cache()
@@ -64,6 +67,9 @@ class Expander:
 		# instantiate configured service list
 		# [Class] -> [Service]
 		self.services = map(lambda s: s(fetcher = fetcher, **services[s]), services.keys())
+
+		# instantiate logger
+		self.logger = logger()
 		
 	
 	# Url, Boolean -> Service
@@ -74,11 +80,12 @@ class Expander:
 		
 		# if no services support this url format, return None
 		if len(priorities) == 0:
+			self.logger.warn('Could not find a service that supports shortener: ' + url.netloc)
 			return None
 		
 		if prefer_batch:
 			batch_services = filter(lambda s: s.SUPPORTS_BATCH, priorities)
-			if len(batch_services > 0):
+			if len(batch_services) > 0:
 				return batch_services[0]
 		
 		return priorities[0]
@@ -87,6 +94,9 @@ class Expander:
 	# [Url], Int -> [ [Url] ]
 	def make_batches(self, queue, batch_size):
 		
+		if batch_size <= 0:
+			raise ValueError('Batch size argument must be greater than 0')
+
 		batches = []
 		while len(queue) > 0:
 			batch = []
@@ -94,6 +104,7 @@ class Expander:
 				batch.append(queue.pop())
 				if len(queue) == 0:
 					break
+
 			batches.append(batch)
 			
 		return batches
@@ -115,7 +126,7 @@ class Expander:
 				complete_expansions.append( (urlparse(url_string), urlparse(self.cache.get(url_string))) )
 		
 		# remove already cached urls from the list to process
-		uncached_url_strings = filter(lambda u: self.cache.has_key(u), url_strings)
+		uncached_url_strings = filter(lambda u: not self.cache.has_key(u), url_strings)
 		
 		# parse all url strings into proper url objects
 		# [String] -> [Url]
@@ -128,6 +139,8 @@ class Expander:
 		# until all urls have been resolved or they have exceeded the max resolution attempt count (MAX_FAILURES)
 		while True:
 			
+			self.logger.info('Attempting to expand ' + str(len(urls)) + ' short urls.')
+
 			# if this is the first run through, try to expand everything
 			# otherwise, try to expand the short-urls that failed last time, except for those that have exceeded MAX_FAILURES
 			if len(failed_expansions) > 0:
@@ -170,6 +183,8 @@ class Expander:
 						# also penalize the priority of this service to take into account this failure
 						except ResolutionException:
 							
+							self.logger.warn('Failed to resolve batch of short URLS of size: ' + len(batch))
+
 							# remember failed url
 							failed_expansions.extend(batch)
 							
@@ -185,13 +200,14 @@ class Expander:
 									
 							continue
 						
-						# if successful: cache the results and remember the short-url/long-url pairs for returning upon completion
-						# also reward the priority of this service for this success
-						for short_url in expansions.keys():
-							self.cache.put(short_url.geturl(), expansions[short_url].geturl())
-							complete_expansions.append(short_url, expansions[short_url])
-						
-						service.priority += self.SUCCESS_REWARD
+						else:
+							# if successful: cache the results and remember the short-url/long-url pairs for returning upon completion
+							# also reward the priority of this service for this success
+							for short_url in expansions.keys():
+								self.cache.put(short_url.geturl(), expansions[short_url].geturl())
+								complete_expansions.append((short_url, expansions[short_url]))
+							
+							service.priority += self.SUCCESS_REWARD
 				
 				# handle services that require one-at-a-time url expansion (no batch support)
 				else:
@@ -204,6 +220,8 @@ class Expander:
 						# also penalize the priority of the service used to account for this failure
 						except ResolutionException:
 							
+							logger.warn('Failed to expand URL: ' + url.geturl())
+
 							# remember failed url
 							failed_expansions.append(url)
 							
@@ -218,11 +236,12 @@ class Expander:
 								
 							continue
 						
-					# on successful expansion cache the result and add this url to the list of expanded urls to be returned upon completion
-					# also reward the priority of the service used for this success
-					self.cache.put(url.geturl(), expansion.geturl())
-					complete_expansions.append( (url, expansion) )
-					service.priority += self.SUCCESS_REWARD
+						else:
+							# on successful expansion cache the result and add this url to the list of expanded urls to be returned upon completion
+							# also reward the priority of the service used for this success
+							self.cache.put(url.geturl(), expansion.geturl())
+							complete_expansions.append( (url, expansion) )
+							service.priority += self.SUCCESS_REWARD
 			
 			# if all urls have been successfully expanded, return the results
 			if len(failed_expansions) == 0:

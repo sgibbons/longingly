@@ -55,6 +55,7 @@ class LongURLPlease(Service):
 		
 		self.SUPPORTS_BATCH = True
 		self.BASE_URL = 'http://www.longurlplease.com/api/'
+		self.MAX_BATCH_SIZE = 15
 		
 		self.SUPPORTED_SHORTENERS = self.load_supported_services()
 		
