@@ -30,21 +30,57 @@ class Bitly(Service):
 		
 		self.SUPPORTS_BATCH = True
 		self.BASE_URL = 'http://api.bit.ly/v3/'
+		self.AUTH_QUERY = '&login=' + login + '&apiKey=' + api_key
+		self.MAX_BATCH_SIZE = 15
 		
 		
-	def supports_shortener(self):
+	def supports_shortener(self, domain):
 		
-		# TODO: implement
-		raise NotImplementedError()
+		# short circuit for non-pro domains
+		if domain == 'bit.ly':
+			return True
+
+		# hit the api to see if the domain is a supported pro domain
+		# TODO: implement some kind of caching to avoid making repeated api calls
+		result_dict = self.fetcher.get(self.BASE_URL + 'bitly_pro_domain?domain=' + domain + '&format=json' + self.AUTH_QUERY)['data']
+
+		return result_dict.has_key('bitly_pro_domain') and result_dict['bitly_pro_domain']
 	
+
 	def expand(self, url):
 		
-		raise NotImplementedError()
+		shorturl_string = url.geturl()
+
+		expands =  self.fetcher.get(self.BASE_URL + 'expand?shortUrl=' + shorturl_string + '&format=json' + self.AUTH_QUERY)['data']['expand']
+		for expansion in expands:
+			if expansion['short_url'] == shorturl_string:
+				return urlparse(expansion['long_url'])
+
+		raise ResolutionException('Failed to resolve given URL: ' + shorturl_string)
 
 
-	def batch_expand(self, url):
+	def batch_expand(self, batch):
 
-		raise NotImplementedError()
+		batch_strings = map(lambda u: u.geturl(), batch)
+
+		batch_query = self.BASE_URL + 'expand?format=json'
+		for shorturl in batch_strings:
+			batch_query += '&shortUrl=' + shorturl
+
+		expands = self.fetcher.get(batch_query + self.AUTH_QUERY)['data']['expand']
+
+		filtered_expands = filter(lambda e: e['short_url'] in batch_strings, expands)
+		result_dict = dict()
+		for expansion in filtered_expands:
+
+			# check to see that this was a successful expansion
+			if expansion['short_url'] in batch_strings and not expansion.has_key('long_url'):
+				raise ResolutionException('At least one of the supplied short urls (' + expansion['short_url'] + ') could not be resolved')
+
+			# success, add the result to the dictionary
+			result_dict[urlparse(expansion['short_url'])] = urlparse(expansion['long_url'])
+
+		return result_dict
 		
 
 class LongURLPlease(Service):
