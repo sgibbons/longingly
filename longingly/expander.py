@@ -10,26 +10,10 @@ from longingly.services import Bitly
 # default logger
 from longingly.logging import DefaultLogger
 
+# default cache
+from longingly.caching import DefaultCache
 
-class Cache:
-	
-	def __init__(self):
-		
-		self.store = dict()
-		
-	def has_key(self, key):
-		
-		return self.store.has_key(key)
-	
-	def get(self, key):
-		
-		return self.store[key]
-	
-	def put(self, key, value):
-		
-		self.store[key] = value
-	
-	
+
 class Expander:
 	
 	# Example construction:
@@ -49,7 +33,7 @@ class Expander:
 		fetcher = DefaultFetcher
 	)
 	"""
-	def __init__(self, services = None, cache = Cache, fetcher = DefaultFetcher, logger = DefaultLogger):
+	def __init__(self, services = None, cache = DefaultCache, fetcher = DefaultFetcher, logger = DefaultLogger):
 				
 		# cache for known expansions
 		self.cache = cache()

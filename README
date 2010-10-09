@@ -10,6 +10,7 @@ Longingly is currently in alpha and there is no stable release. Use at your own 
 	* Dynamically tracks and updates performance of services to select the best one
 	* Pluggable caching
 	* Easy to add more services
+	* Pluggable logging
 	* Supports multiple environments
 		* Full python standard install
 		* Google app engine
@@ -48,12 +49,12 @@ exp.expand('http://bit.ly/cUpI7Q')
 
 ## Custom Caching
 # By default, an in-memory per-expander cache is used. In order to create a custom cache:
-# subclass longingly.expander.cache, register class on expander construction
+# subclass longingly.caching.AbstractCache, register class on expander construction
 
-from longingly.expander import Cache
+from longingly.caching import AbstractCache
 from longingly.expander import Expander
 
-class CustomCache(Cache):
+class CustomCache(AbstractCache):
 	
 	def __init__(self):
 		
