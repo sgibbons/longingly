@@ -35,7 +35,7 @@ exp = Expander(
 		Bitly: {
 			'priority': 1,
 			'login': 'your_bitly_login',
-			'apikey': 'af7b42cc031'
+			'api_key': 'your_bitly_api_key'
 		},
 		LongURL: {
 			'priority': 0
